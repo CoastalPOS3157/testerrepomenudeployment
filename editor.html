@@ -116,20 +116,16 @@
   </div>
 </div>
 
-<script src="menu-data.js"></script>
+<script>
+  // Cache-bust so this always reflects the current local file, not a
+  // browser-cached copy from a previous visit.
+  document.write('<script src="menu-data.js?v=' + Date.now() + '"><\/script>');
+</script>
 <script src="app.js"></script>
 <script src="config.js" onerror="window.__CONFIG_MISSING__ = true"></script>
 <script>
 (function () {
   var state = JSON.parse(JSON.stringify(window.MENU_DATA || { restaurantName: "", tagline: "", settings: {}, categories: [] }));
-  state.settings = state.settings || {};
-  if (typeof state.settings.cardSurchargePercent !== "number") state.settings.cardSurchargePercent = 3.99;
-  state.settings.branding = state.settings.branding || {};
-  if (!state.settings.branding.colorMode) state.settings.branding.colorMode = "preset";
-  if (!state.settings.branding.presetId) state.settings.branding.presetId = "warm";
-  if (!state.settings.branding.colors) {
-    state.settings.branding.colors = window.MenuRenderer.presetThemes[0].colors;
-  }
 
   var catsRoot = document.getElementById("categories-root");
   var previewRoot = document.getElementById("preview-root");
@@ -149,7 +145,64 @@
     return prefix + "-" + Math.random().toString(36).slice(2, 9);
   }
 
-  surchargeInput.value = state.settings.cardSurchargePercent;
+  function applyStateDefaults() {
+    state.settings = state.settings || {};
+    if (typeof state.settings.cardSurchargePercent !== "number") state.settings.cardSurchargePercent = 3.99;
+    state.settings.branding = state.settings.branding || {};
+    if (!state.settings.branding.colorMode) state.settings.branding.colorMode = "preset";
+    if (!state.settings.branding.presetId) state.settings.branding.presetId = "warm";
+    if (!state.settings.branding.colors) {
+      state.settings.branding.colors = window.MenuRenderer.presetThemes[0].colors;
+    }
+  }
+
+  function githubApiBase(config) {
+    return "https://api.github.com/repos/" + config.repoOwner + "/" + config.repoName + "/contents/" + (config.filePath || "menu-data.js");
+  }
+
+  function base64ToUtf8(b64) {
+    return decodeURIComponent(escape(atob(b64.replace(/\s/g, ""))));
+  }
+
+  // The editor's local menu-data.js only reflects the last time someone
+  // downloaded/copied a fresh file onto this USB drive — publishing
+  // never writes back to it. So on load, check GitHub for whatever was
+  // most recently published and use that instead, falling back to the
+  // local file if there's no config yet or the check fails (e.g. no
+  // internet).
+  async function fetchLatestPublished() {
+    var config = window.MENU_SITE_CONFIG;
+    if (window.__CONFIG_MISSING__ || !config || !config.token || !config.repoOwner || !config.repoName) {
+      return { data: null, checked: false };
+    }
+    try {
+      var resp = await fetch(githubApiBase(config) + "?ref=" + (config.branch || "main"), {
+        cache: "no-store",
+        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" }
+      });
+      if (!resp.ok) return { data: null, checked: true };
+      var json = await resp.json();
+      var text = base64ToUtf8(json.content);
+      var jsonText = text.replace(/^\s*window\.MENU_DATA\s*=\s*/, "").replace(/;\s*$/, "");
+      return { data: JSON.parse(jsonText), checked: true };
+    } catch (err) {
+      return { data: null, checked: true };
+    }
+  }
+
+  async function init() {
+    var result = await fetchLatestPublished();
+    if (result.data) {
+      state = result.data;
+    } else if (result.checked) {
+      showStatus("info", "Showing your last saved copy on this computer " + String.fromCharCode(8212) + " couldn't check for a newer published version (check your internet connection).");
+    }
+    applyStateDefaults();
+    surchargeInput.value = state.settings.cardSurchargePercent;
+    renderBrandingUI();
+    renderEditor();
+    renderPreview();
+  }
   surchargeInput.addEventListener("input", function (e) {
     state.settings.cardSurchargePercent = parseFloat(e.target.value) || 0;
     renderEditor();
@@ -291,8 +344,6 @@
     renderBrandingUI();
     renderPreview();
   });
-
-  renderBrandingUI();
 
   function showStatus(kind, message) {
     statusBanner.className = "status-banner show status-" + kind;
@@ -575,7 +626,7 @@
     publishBtn.textContent = "Publishing...";
     showStatus("info", "Publishing your menu, please wait...");
 
-    var apiBase = "https://api.github.com/repos/" + config.repoOwner + "/" + config.repoName + "/contents/" + (config.filePath || "menu-data.js");
+    var apiBase = githubApiBase(config);
     var branch = config.branch || "main";
 
     try {
@@ -609,8 +660,7 @@
     }
   });
 
-  renderEditor();
-  renderPreview();
+  init();
 })();
 </script>
 </body>

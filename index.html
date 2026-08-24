@@ -15,7 +15,12 @@
     <div id="menu-root"></div>
   </div>
 
-  <script src="menu-data.js"></script>
+  <script>
+    // Cache-bust so a browser that already visited this page always
+    // fetches the latest published menu, instead of possibly reusing an
+    // old cached copy of menu-data.js.
+    document.write('<script src="menu-data.js?v=' + Date.now() + '"><\/script>');
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
