@@ -1,5 +1,5 @@
 window.MENU_DATA = {
-  "restaurantName": "Sample Restaurant",
+  "restaurantName": "Coastal Point of Sale Cafe",
   "tagline": "Fresh food, made simple",
   "updatedAt": "2026-08-21",
   "settings": {
