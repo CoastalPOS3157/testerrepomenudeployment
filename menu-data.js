@@ -23,7 +23,7 @@ window.MENU_DATA = {
       "items": [
         {
           "id": "chips-salsa",
-          "name": "Chips & Salsa& test",
+          "name": "Chips & Salsa & tester",
           "description": "House-made tortilla chips with fresh salsa.",
           "tags": [
             "vegetarian"
@@ -32,7 +32,7 @@ window.MENU_DATA = {
           "sizes": [
             {
               "label": "",
-              "cashPrice": "6.99"
+              "cashPrice": "5.99"
             }
           ]
         },
