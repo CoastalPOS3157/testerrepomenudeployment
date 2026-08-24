@@ -74,6 +74,16 @@
   <div id="status-banner" class="status-banner"></div>
 
   <div class="settings-panel">
+    <span class="settings-label">Restaurant Name:</span>
+    <input id="restaurant-name-input" type="text" style="flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;" />
+  </div>
+
+  <div class="settings-panel">
+    <span class="settings-label">Tagline (optional):</span>
+    <input id="restaurant-tagline-input" type="text" placeholder="e.g. Fresh food, made simple" style="flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;" />
+  </div>
+
+  <div class="settings-panel">
     <span class="settings-label">Card Surcharge:</span>
     <input id="surcharge-input" type="number" step="0.01" min="0" />
     <span>%</span>
@@ -133,6 +143,8 @@
   var statusBanner = document.getElementById("status-banner");
   var editorTitle = document.getElementById("editor-title");
   var surchargeInput = document.getElementById("surcharge-input");
+  var restaurantNameInput = document.getElementById("restaurant-name-input");
+  var restaurantTaglineInput = document.getElementById("restaurant-tagline-input");
   var logoInput = document.getElementById("logo-input");
   var logoPreviewImg = document.getElementById("logo-preview-img");
   var removeLogoBtn = document.getElementById("remove-logo-btn");
@@ -199,6 +211,8 @@
     }
     applyStateDefaults();
     surchargeInput.value = state.settings.cardSurchargePercent;
+    restaurantNameInput.value = state.restaurantName || "";
+    restaurantTaglineInput.value = state.tagline || "";
     renderBrandingUI();
     renderEditor();
     renderPreview();
@@ -206,6 +220,15 @@
   surchargeInput.addEventListener("input", function (e) {
     state.settings.cardSurchargePercent = parseFloat(e.target.value) || 0;
     renderEditor();
+    renderPreview();
+  });
+  restaurantNameInput.addEventListener("input", function (e) {
+    state.restaurantName = e.target.value;
+    renderEditor();
+    renderPreview();
+  });
+  restaurantTaglineInput.addEventListener("input", function (e) {
+    state.tagline = e.target.value;
     renderPreview();
   });
 
