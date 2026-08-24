@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Edit Your Menu</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  body { background: #f4f1ec; }
+  .editor-wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+  .editor-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .editor-header h1 { font-size: 22px; margin: 0; }
+  .btn { border: none; border-radius: 10px; padding: 12px 18px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-publish { background: #2f7a3d; color: #fff; }
+  .btn-publish:disabled { background: #9db99f; cursor: not-allowed; }
+  .btn-save { background: #fff; border: 1px solid var(--border); color: var(--text); }
+  .btn-secondary { background: #fff; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; font-size: 13px; border-radius: 8px; cursor: pointer; }
+  .btn-danger { background: #fff; border: 1px solid #e0b3ac; color: #a33b2b; padding: 6px 10px; font-size: 13px; border-radius: 8px; cursor: pointer; }
+  .status-banner { padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none; }
+  .status-banner.show { display: block; }
+  .status-success { background: #e5f3e6; color: #205826; }
+  .status-error { background: #fbe7e4; color: #8a2f21; }
+  .status-info { background: #eef2f7; color: #2b4a68; }
+  .category-block { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 18px; }
+  .category-block-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .category-name-input { font-size: 18px; font-weight: 700; border: none; border-bottom: 2px solid transparent; flex: 1; padding: 4px 0; }
+  .category-name-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .item-row { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .item-row-line { display: flex; gap: 8px; flex-wrap: wrap; }
+  .item-row input[type=text] { flex: 1; min-width: 120px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+  .item-row textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; resize: vertical; }
+  .item-row-tools { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .sold-out-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .add-item-btn { align-self: flex-start; }
+  .add-category-btn { display: block; margin: 0 auto; }
+  .preview-panel { margin-top: 32px; }
+  .preview-panel h2 { font-size: 16px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .preview-box { border: 2px dashed var(--border); border-radius: 12px; padding: 8px; background: var(--bg); }
+  .settings-panel { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .settings-panel .settings-label { font-weight: 600; }
+  .settings-panel input[type=number] { width: 80px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+  .settings-panel .settings-hint { font-size: 13px; color: var(--muted); }
+  .sizes-block { border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg); }
+  .sizes-block-label { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+  .size-edit-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  .size-edit-row input.size-label-input { flex: 1; min-width: 100px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; }
+  .size-edit-row input.size-price-input { flex: 0 0 90px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; }
+  .size-edit-row .size-card-preview { flex: 0 0 auto; font-size: 12px; color: var(--muted); min-width: 90px; }
+  .add-size-btn { margin-top: 4px; }
+  .branding-panel { display: block; }
+  .branding-row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 12px; }
+  .logo-upload-col { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .logo-preview-img { width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); display: none; }
+  .color-mode-col { flex: 1; min-width: 240px; }
+  .color-mode-choice { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+  .color-mode-choice label { display: flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+  .preset-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+  .preset-swatch { border: 2px solid transparent; border-radius: 10px; padding: 6px 10px 6px 6px; display: flex; align-items: center; gap: 8px; background: #fff; cursor: pointer; font-size: 13px; }
+  .preset-swatch.selected { border-color: var(--text); }
+  .preset-swatch .swatch-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+  .auto-hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="editor-wrap">
+  <div class="editor-header">
+    <h1 id="editor-title">Edit Your Menu</h1>
+    <div style="display:flex; gap:10px;">
+      <button id="save-backup-btn" class="btn btn-save">Save Backup Copy</button>
+      <button id="publish-btn" class="btn btn-publish">Publish to Website</button>
+    </div>
+  </div>
+
+  <div id="status-banner" class="status-banner"></div>
+
+  <div class="settings-panel">
+    <span class="settings-label">Card Surcharge:</span>
+    <input id="surcharge-input" type="number" step="0.01" min="0" />
+    <span>%</span>
+    <span class="settings-hint">You type the cash price for each item. The card price shown to customers is calculated automatically from this percentage (e.g. 3.99 means the card price is 3.99% above the cash price).</span>
+  </div>
+
+  <div class="settings-panel branding-panel">
+    <span class="settings-label">Logo &amp; Colors</span>
+    <div class="branding-row">
+      <div class="logo-upload-col">
+        <img id="logo-preview-img" class="logo-preview-img" alt="Logo preview" />
+        <div>
+          <input id="logo-input" type="file" accept="image/*" />
+          <button id="remove-logo-btn" class="btn-secondary" type="button" style="display:none; margin-top:6px;">Remove Logo</button>
+        </div>
+      </div>
+      <div class="color-mode-col">
+        <div class="color-mode-choice">
+          <label><input type="radio" name="color-mode" id="color-mode-auto" value="auto" /> Match my logo automatically</label>
+          <label><input type="radio" name="color-mode" id="color-mode-preset" value="preset" /> Choose a color scheme</label>
+        </div>
+        <div id="auto-hint" class="auto-hint"></div>
+        <div id="preset-swatches" class="preset-swatches"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="categories-root"></div>
+
+  <button id="add-category-btn" class="btn btn-secondary add-category-btn">+ Add a New Section (e.g. Desserts)</button>
+
+  <div class="preview-panel">
+    <h2>This is what customers will see</h2>
+    <div class="preview-box" id="preview-box">
+      <div id="menu-search-preview" style="padding:8px;">
+        <input type="text" placeholder="Search the menu..." disabled style="width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;" />
+      </div>
+      <div id="preview-root" style="padding: 0 16px 16px;"></div>
+    </div>
+  </div>
+</div>
+
+<script src="menu-data.js"></script>
+<script src="app.js"></script>
+<script src="config.js" onerror="window.__CONFIG_MISSING__ = true"></script>
+<script>
+(function () {
+  var state = JSON.parse(JSON.stringify(window.MENU_DATA || { restaurantName: "", tagline: "", settings: {}, categories: [] }));
+  state.settings = state.settings || {};
+  if (typeof state.settings.cardSurchargePercent !== "number") state.settings.cardSurchargePercent = 3.99;
+  state.settings.branding = state.settings.branding || {};
+  if (!state.settings.branding.colorMode) state.settings.branding.colorMode = "preset";
+  if (!state.settings.branding.presetId) state.settings.branding.presetId = "warm";
+  if (!state.settings.branding.colors) {
+    state.settings.branding.colors = window.MenuRenderer.presetThemes[0].colors;
+  }
+
+  var catsRoot = document.getElementById("categories-root");
+  var previewRoot = document.getElementById("preview-root");
+  var previewBox = document.getElementById("preview-box");
+  var statusBanner = document.getElementById("status-banner");
+  var editorTitle = document.getElementById("editor-title");
+  var surchargeInput = document.getElementById("surcharge-input");
+  var logoInput = document.getElementById("logo-input");
+  var logoPreviewImg = document.getElementById("logo-preview-img");
+  var removeLogoBtn = document.getElementById("remove-logo-btn");
+  var colorModeAutoRadio = document.getElementById("color-mode-auto");
+  var colorModePresetRadio = document.getElementById("color-mode-preset");
+  var autoHint = document.getElementById("auto-hint");
+  var presetSwatchesEl = document.getElementById("preset-swatches");
+
+  function uid(prefix) {
+    return prefix + "-" + Math.random().toString(36).slice(2, 9);
+  }
+
+  surchargeInput.value = state.settings.cardSurchargePercent;
+  surchargeInput.addEventListener("input", function (e) {
+    state.settings.cardSurchargePercent = parseFloat(e.target.value) || 0;
+    renderEditor();
+    renderPreview();
+  });
+
+  // ---- Branding: logo upload + color scheme -------------------------
+
+  function resizeImageFile(file, maxDim, callback) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        callback({ dataUrl: canvas.toDataURL("image/png"), canvas: canvas });
+      };
+      img.onerror = function () { callback(null); };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateLogoPreviewVisibility() {
+    if (state.settings.branding.logoDataUrl) {
+      logoPreviewImg.src = state.settings.branding.logoDataUrl;
+      logoPreviewImg.style.display = "block";
+      removeLogoBtn.style.display = "inline-block";
+    } else {
+      logoPreviewImg.style.display = "none";
+      removeLogoBtn.style.display = "none";
+    }
+  }
+
+  function renderPresetSwatches() {
+    presetSwatchesEl.innerHTML = "";
+    window.MenuRenderer.presetThemes.forEach(function (preset) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "preset-swatch" + (state.settings.branding.presetId === preset.id && state.settings.branding.colorMode === "preset" ? " selected" : "");
+      var dot = document.createElement("span");
+      dot.className = "swatch-dot";
+      dot.style.background = preset.colors.accent;
+      btn.appendChild(dot);
+      btn.appendChild(document.createTextNode(preset.name));
+      btn.addEventListener("click", function () {
+        state.settings.branding.colorMode = "preset";
+        state.settings.branding.presetId = preset.id;
+        state.settings.branding.colors = preset.colors;
+        colorModePresetRadio.checked = true;
+        renderBrandingUI();
+        renderPreview();
+      });
+      presetSwatchesEl.appendChild(btn);
+    });
+  }
+
+  function recalculateAutoColorsFromLogo() {
+    if (!state.settings.branding.logoDataUrl) return;
+    var img = new Image();
+    img.onload = function () {
+      var canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      var dominant = window.MenuRenderer.extractDominantColor(canvas);
+      if (dominant) {
+        state.settings.branding.colors = window.MenuRenderer.themeFromAccent(dominant);
+      }
+      renderPreview();
+    };
+    img.src = state.settings.branding.logoDataUrl;
+  }
+
+  function renderBrandingUI() {
+    updateLogoPreviewVisibility();
+    colorModeAutoRadio.checked = state.settings.branding.colorMode === "auto";
+    colorModePresetRadio.checked = state.settings.branding.colorMode === "preset";
+    var isAuto = state.settings.branding.colorMode === "auto";
+    presetSwatchesEl.style.display = isAuto ? "none" : "flex";
+    if (isAuto && !state.settings.branding.logoDataUrl) {
+      autoHint.textContent = "Upload a logo above first, then colors will be matched to it automatically.";
+    } else if (isAuto) {
+      autoHint.textContent = "Colors are matched to your uploaded logo.";
+    } else {
+      autoHint.textContent = "";
+    }
+    renderPresetSwatches();
+  }
+
+  logoInput.addEventListener("change", function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      showStatus("error", "That image is too large. Please choose a smaller photo.");
+      return;
+    }
+    resizeImageFile(file, 240, function (result) {
+      if (!result) {
+        showStatus("error", "Couldn't read that image. Please try a different file.");
+        return;
+      }
+      state.settings.branding.logoDataUrl = result.dataUrl;
+      if (state.settings.branding.colorMode === "auto") {
+        var dominant = window.MenuRenderer.extractDominantColor(result.canvas);
+        if (dominant) state.settings.branding.colors = window.MenuRenderer.themeFromAccent(dominant);
+      }
+      renderBrandingUI();
+      renderPreview();
+    });
+  });
+
+  removeLogoBtn.addEventListener("click", function () {
+    state.settings.branding.logoDataUrl = null;
+    logoInput.value = "";
+    if (state.settings.branding.colorMode === "auto") {
+      state.settings.branding.colorMode = "preset";
+      state.settings.branding.colors = window.MenuRenderer.presetThemes[0].colors;
+      state.settings.branding.presetId = window.MenuRenderer.presetThemes[0].id;
+    }
+    renderBrandingUI();
+    renderPreview();
+  });
+
+  colorModeAutoRadio.addEventListener("change", function () {
+    state.settings.branding.colorMode = "auto";
+    recalculateAutoColorsFromLogo();
+    renderBrandingUI();
+    renderPreview();
+  });
+
+  colorModePresetRadio.addEventListener("change", function () {
+    state.settings.branding.colorMode = "preset";
+    renderBrandingUI();
+    renderPreview();
+  });
+
+  renderBrandingUI();
+
+  function showStatus(kind, message) {
+    statusBanner.className = "status-banner show status-" + kind;
+    statusBanner.textContent = message;
+  }
+
+  function clearStatus() {
+    statusBanner.className = "status-banner";
+  }
+
+  function renderPreview() {
+    window.MenuRenderer.applyTheme(state.settings.branding.colors, previewBox);
+    window.MenuRenderer.renderMenu(state, previewRoot, {});
+  }
+
+  function renderEditor() {
+    editorTitle.textContent = "Edit Your Menu — " + (state.restaurantName || "");
+    catsRoot.innerHTML = "";
+
+    state.categories.forEach(function (category, catIndex) {
+      var block = document.createElement("div");
+      block.className = "category-block";
+
+      var head = document.createElement("div");
+      head.className = "category-block-head";
+
+      var nameInput = document.createElement("input");
+      nameInput.className = "category-name-input";
+      nameInput.type = "text";
+      nameInput.value = category.name;
+      nameInput.addEventListener("input", function (e) {
+        category.name = e.target.value;
+        renderPreview();
+      });
+      head.appendChild(nameInput);
+
+      var upBtn = document.createElement("button");
+      upBtn.className = "btn-secondary";
+      upBtn.textContent = "↑";
+      upBtn.title = "Move section up";
+      upBtn.disabled = catIndex === 0;
+      upBtn.addEventListener("click", function () {
+        var tmp = state.categories[catIndex - 1];
+        state.categories[catIndex - 1] = state.categories[catIndex];
+        state.categories[catIndex] = tmp;
+        renderEditor();
+        renderPreview();
+      });
+      head.appendChild(upBtn);
+
+      var downBtn = document.createElement("button");
+      downBtn.className = "btn-secondary";
+      downBtn.textContent = "↓";
+      downBtn.title = "Move section down";
+      downBtn.disabled = catIndex === state.categories.length - 1;
+      downBtn.addEventListener("click", function () {
+        var tmp = state.categories[catIndex + 1];
+        state.categories[catIndex + 1] = state.categories[catIndex];
+        state.categories[catIndex] = tmp;
+        renderEditor();
+        renderPreview();
+      });
+      head.appendChild(downBtn);
+
+      var removeCatBtn = document.createElement("button");
+      removeCatBtn.className = "btn-danger";
+      removeCatBtn.textContent = "Delete Section";
+      removeCatBtn.addEventListener("click", function () {
+        if (!confirm("Delete the whole \"" + category.name + "\" section and everything in it?")) return;
+        state.categories.splice(catIndex, 1);
+        renderEditor();
+        renderPreview();
+      });
+      head.appendChild(removeCatBtn);
+
+      block.appendChild(head);
+
+      category.items.forEach(function (item, itemIndex) {
+        var row = document.createElement("div");
+        row.className = "item-row";
+
+        var line1 = document.createElement("div");
+        line1.className = "item-row-line";
+
+        var nameEl = document.createElement("input");
+        nameEl.type = "text";
+        nameEl.placeholder = "Item name";
+        nameEl.value = item.name;
+        nameEl.addEventListener("input", function (e) { item.name = e.target.value; renderPreview(); });
+        line1.appendChild(nameEl);
+
+        row.appendChild(line1);
+
+        if (!item.sizes || !item.sizes.length) {
+          item.sizes = [{ id: uid("size"), label: "", cashPrice: "0.00" }];
+        }
+
+        var sizesBlock = document.createElement("div");
+        sizesBlock.className = "sizes-block";
+
+        var sizesLabel = document.createElement("div");
+        sizesLabel.className = "sizes-block-label";
+        sizesLabel.textContent = item.sizes.length > 1 ? "Serving Sizes & Cash Prices" : "Cash Price";
+        sizesBlock.appendChild(sizesLabel);
+
+        item.sizes.forEach(function (size, sizeIndex) {
+          var sizeRow = document.createElement("div");
+          sizeRow.className = "size-edit-row";
+
+          if (item.sizes.length > 1) {
+            var labelInput = document.createElement("input");
+            labelInput.type = "text";
+            labelInput.className = "size-label-input";
+            labelInput.placeholder = "Size name (e.g. Small)";
+            labelInput.value = size.label || "";
+            labelInput.addEventListener("input", function (e) { size.label = e.target.value; renderPreview(); });
+            sizeRow.appendChild(labelInput);
+          }
+
+          var priceInput = document.createElement("input");
+          priceInput.type = "text";
+          priceInput.className = "size-price-input";
+          priceInput.placeholder = "Cash price";
+          priceInput.value = size.cashPrice;
+          var cardPreview = document.createElement("span");
+          cardPreview.className = "size-card-preview";
+          function updateCardPreview() {
+            cardPreview.textContent = "Card: $" + window.MenuRenderer.cardPriceFromCash(size.cashPrice, state.settings.cardSurchargePercent);
+          }
+          priceInput.addEventListener("input", function (e) {
+            size.cashPrice = e.target.value;
+            updateCardPreview();
+            renderPreview();
+          });
+          sizeRow.appendChild(priceInput);
+          updateCardPreview();
+          sizeRow.appendChild(cardPreview);
+
+          if (item.sizes.length > 1) {
+            var removeSizeBtn = document.createElement("button");
+            removeSizeBtn.className = "btn-danger";
+            removeSizeBtn.textContent = "Remove Size";
+            removeSizeBtn.addEventListener("click", function () {
+              item.sizes.splice(sizeIndex, 1);
+              renderEditor();
+              renderPreview();
+            });
+            sizeRow.appendChild(removeSizeBtn);
+          }
+
+          sizesBlock.appendChild(sizeRow);
+        });
+
+        var addSizeBtn = document.createElement("button");
+        addSizeBtn.className = "btn-secondary add-size-btn";
+        addSizeBtn.textContent = "+ Add Another Size (e.g. Small/Medium/Large)";
+        addSizeBtn.addEventListener("click", function () {
+          item.sizes.forEach(function (s) { if (!s.label) s.label = "Regular"; });
+          item.sizes.push({ id: uid("size"), label: "New Size", cashPrice: "0.00" });
+          renderEditor();
+          renderPreview();
+        });
+        sizesBlock.appendChild(addSizeBtn);
+
+        row.appendChild(sizesBlock);
+
+        var descEl = document.createElement("textarea");
+        descEl.placeholder = "Description (optional)";
+        descEl.value = item.description || "";
+        descEl.addEventListener("input", function (e) { item.description = e.target.value; renderPreview(); });
+        row.appendChild(descEl);
+
+        var tagsEl = document.createElement("input");
+        tagsEl.type = "text";
+        tagsEl.placeholder = "Tags, comma separated (e.g. vegetarian, spicy)";
+        tagsEl.value = (item.tags || []).join(", ");
+        tagsEl.addEventListener("input", function (e) {
+          item.tags = e.target.value.split(",").map(function (t) { return t.trim(); }).filter(Boolean);
+          renderPreview();
+        });
+        row.appendChild(tagsEl);
+
+        var tools = document.createElement("div");
+        tools.className = "item-row-tools";
+
+        var soldOutLabel = document.createElement("label");
+        soldOutLabel.className = "sold-out-toggle";
+        var soldOutCheckbox = document.createElement("input");
+        soldOutCheckbox.type = "checkbox";
+        soldOutCheckbox.checked = item.available === false;
+        soldOutCheckbox.addEventListener("change", function (e) {
+          item.available = !e.target.checked;
+          renderPreview();
+        });
+        soldOutLabel.appendChild(soldOutCheckbox);
+        soldOutLabel.appendChild(document.createTextNode("Mark as sold out / hidden for now"));
+        tools.appendChild(soldOutLabel);
+
+        var removeItemBtn = document.createElement("button");
+        removeItemBtn.className = "btn-danger";
+        removeItemBtn.textContent = "Remove Item";
+        removeItemBtn.addEventListener("click", function () {
+          category.items.splice(itemIndex, 1);
+          renderEditor();
+          renderPreview();
+        });
+        tools.appendChild(removeItemBtn);
+
+        row.appendChild(tools);
+        block.appendChild(row);
+      });
+
+      var addItemBtn = document.createElement("button");
+      addItemBtn.className = "btn-secondary add-item-btn";
+      addItemBtn.textContent = "+ Add Item";
+      addItemBtn.addEventListener("click", function () {
+        category.items.push({ id: uid("item"), name: "New Item", description: "", sizes: [{ id: uid("size"), label: "", cashPrice: "0.00" }], tags: [], available: true });
+        renderEditor();
+        renderPreview();
+      });
+      block.appendChild(addItemBtn);
+
+      catsRoot.appendChild(block);
+    });
+  }
+
+  document.getElementById("add-category-btn").addEventListener("click", function () {
+    state.categories.push({ id: uid("cat"), name: "New Section", items: [] });
+    renderEditor();
+    renderPreview();
+  });
+
+  function buildFileContents() {
+    return "window.MENU_DATA = " + JSON.stringify(state, null, 2) + ";\n";
+  }
+
+  function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  document.getElementById("save-backup-btn").addEventListener("click", async function () {
+    var contents = buildFileContents();
+    try {
+      if (window.showSaveFilePicker) {
+        var handle = await window.showSaveFilePicker({
+          suggestedName: "menu-data.js",
+          types: [{ description: "Menu data file", accept: { "text/javascript": [".js"] } }]
+        });
+        var writable = await handle.createWritable();
+        await writable.write(contents);
+        await writable.close();
+        showStatus("success", "Backup saved.");
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+    var blob = new Blob([contents], { type: "text/javascript" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "menu-data.js";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showStatus("info", "A backup file downloaded. Copy it onto your USB drive, replacing the old menu-data.js, if you'd like a local backup.");
+  });
+
+  document.getElementById("publish-btn").addEventListener("click", async function () {
+    clearStatus();
+    var config = window.MENU_SITE_CONFIG;
+    if (window.__CONFIG_MISSING__ || !config || !config.token) {
+      showStatus("error", "Publishing isn't set up on this computer yet. Ask Coastal POS to finish setup, or use \"Save Backup Copy\" for now.");
+      return;
+    }
+
+    var publishBtn = document.getElementById("publish-btn");
+    publishBtn.disabled = true;
+    publishBtn.textContent = "Publishing...";
+    showStatus("info", "Publishing your menu, please wait...");
+
+    var apiBase = "https://api.github.com/repos/" + config.repoOwner + "/" + config.repoName + "/contents/" + (config.filePath || "menu-data.js");
+    var branch = config.branch || "main";
+
+    try {
+      var getResp = await fetch(apiBase + "?ref=" + branch, {
+        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" }
+      });
+      if (!getResp.ok) throw new Error("lookup-failed");
+      var getJson = await getResp.json();
+
+      var putResp = await fetch(apiBase, {
+        method: "PUT",
+        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" },
+        body: JSON.stringify({
+          message: "Update menu",
+          content: utf8ToBase64(buildFileContents()),
+          sha: getJson.sha,
+          branch: branch
+        })
+      });
+      if (!putResp.ok) throw new Error("publish-failed");
+
+      var liveNote = config.siteUrl
+        ? " View it at " + config.siteUrl + " (it may take about a minute to update)."
+        : " It may take about a minute to update online.";
+      showStatus("success", "Your menu is now live!" + liveNote);
+    } catch (err) {
+      showStatus("error", "Something went wrong while publishing. Check your internet connection and try again, or ask Coastal POS for help.");
+    } finally {
+      publishBtn.disabled = false;
+      publishBtn.textContent = "Publish to Website";
+    }
+  });
+
+  renderEditor();
+  renderPreview();
+})();
+</script>
+</body>
+</html>
