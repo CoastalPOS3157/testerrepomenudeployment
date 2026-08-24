@@ -23,7 +23,7 @@ window.MENU_DATA = {
       "items": [
         {
           "id": "chips-salsa",
-          "name": "Chips & Salsa & tester",
+          "name": "Chips & Salsa & tester & this is cool",
           "description": "House-made tortilla chips with fresh salsa.",
           "tags": [
             "vegetarian"
