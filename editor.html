@@ -59,13 +59,28 @@
   .preset-swatch.selected { border-color: var(--text); }
   .preset-swatch .swatch-dot { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
   .auto-hint { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .publish-password-wrap { display: flex; flex-direction: column; gap: 3px; }
+  .publish-password-wrap input[type=password] { padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; width: 160px; }
+  .publish-password-wrap label { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .bulk-import-panel { display: block; }
+  .bulk-import-body { width: 100%; margin-top: 10px; }
+  .bulk-import-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .bulk-import-panel textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-family: monospace; resize: vertical; margin-bottom: 8px; }
+  .bulk-import-preview { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 14px; }
+  .bulk-import-preview table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+  .bulk-import-preview th, .bulk-import-preview td { border: 1px solid var(--border); padding: 4px 8px; text-align: left; }
+  .bulk-import-error { color: #a33b2b; }
 </style>
 </head>
 <body>
 <div class="editor-wrap">
   <div class="editor-header">
     <h1 id="editor-title">Edit Your Menu</h1>
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div class="publish-password-wrap">
+        <input id="publish-password-input" type="password" placeholder="Publish password" autocomplete="off" />
+        <label><input type="checkbox" id="remember-password-checkbox" /> Remember on this device</label>
+      </div>
       <button id="save-backup-btn" class="btn btn-save">Save Backup Copy</button>
       <button id="publish-btn" class="btn btn-publish">Publish to Website</button>
     </div>
@@ -108,6 +123,27 @@
         <div id="auto-hint" class="auto-hint"></div>
         <div id="preset-swatches" class="preset-swatches"></div>
       </div>
+    </div>
+  </div>
+
+  <div class="settings-panel bulk-import-panel">
+    <span class="settings-label">Bulk Import Menu</span>
+    <div class="bulk-import-body">
+      <p class="settings-hint" style="margin: 0 0 10px;">
+        Already have your menu in a spreadsheet? Fill in
+        <button id="download-template-btn" class="btn-secondary" type="button">Download a Template</button>
+        (opens fine in Excel or Google Sheets), then upload it below — or just paste the cells straight from your
+        spreadsheet. This replaces your entire menu, so double-check the preview before confirming.
+      </p>
+      <div class="bulk-import-row">
+        <input id="bulk-import-file" type="file" accept=".csv,text/csv" />
+        <span class="settings-hint">or paste spreadsheet cells here:</span>
+      </div>
+      <textarea id="bulk-import-textarea" rows="4" placeholder="Category	Item	Size	Price	Description	Tags	SoldOut&#10;Paste directly from Excel/Google Sheets, or type CSV here."></textarea>
+      <div class="bulk-import-row">
+        <button id="bulk-import-preview-btn" class="btn-secondary" type="button">Preview Import</button>
+      </div>
+      <div id="bulk-import-preview" class="bulk-import-preview" style="display:none;"></div>
     </div>
   </div>
 
@@ -177,20 +213,23 @@
   }
 
   // The editor's local menu-data.js only reflects the last time someone
-  // downloaded/copied a fresh file onto this USB drive — publishing
-  // never writes back to it. So on load, check GitHub for whatever was
-  // most recently published and use that instead, falling back to the
-  // local file if there's no config yet or the check fails (e.g. no
-  // internet).
+  // downloaded/copied a fresh file onto this USB drive (or the last time
+  // this page itself was loaded) — publishing never writes back to it.
+  // So on load, check GitHub for whatever was most recently published and
+  // use that instead, falling back to the local file if there's no config
+  // yet or the check fails (e.g. no internet). This is a plain
+  // unauthenticated read — the repo is public, so no token is needed just
+  // to look at it. Only publishing (writing) requires the password, and
+  // that goes through the publish proxy, never straight to GitHub.
   async function fetchLatestPublished() {
     var config = window.MENU_SITE_CONFIG;
-    if (window.__CONFIG_MISSING__ || !config || !config.token || !config.repoOwner || !config.repoName) {
+    if (window.__CONFIG_MISSING__ || !config || !config.repoOwner || !config.repoName) {
       return { data: null, checked: false };
     }
     try {
       var resp = await fetch(githubApiBase(config) + "?ref=" + (config.branch || "main"), {
         cache: "no-store",
-        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" }
+        headers: { Accept: "application/vnd.github+json" }
       });
       if (!resp.ok) return { data: null, checked: true };
       var json = await resp.json();
@@ -599,13 +638,252 @@
     renderPreview();
   });
 
+  // ---- Bulk import -----------------------------------------------------
+  // Accepts a spreadsheet (CSV file, or cells pasted straight from Excel/
+  // Google Sheets — those use tabs between columns, which this handles
+  // the same as commas). Expected columns: Category, Item, Size, Price,
+  // Description, Tags, SoldOut. "Size" and rows sharing the same Category
+  // + Item are grouped into one item's multiple sizes; leave Size blank
+  // for items with just one price.
+
+  var TEMPLATE_CSV_ROWS = [
+    ["Category", "Item", "Size", "Price", "Description", "Tags", "SoldOut"],
+    ["Appetizers", "Chips & Salsa", "", "5.99", "House-made tortilla chips with fresh salsa.", "vegetarian", "no"],
+    ["Drinks", "Iced Tea", "Small", "1.99", "Sweet or unsweet.", "", "no"],
+    ["Drinks", "Iced Tea", "Medium", "2.49", "Sweet or unsweet.", "", "no"],
+    ["Drinks", "Iced Tea", "Large", "2.99", "Sweet or unsweet.", "", "no"]
+  ];
+
+  function csvField(value) {
+    var s = String(value == null ? "" : value);
+    if (/[",\n]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function buildTemplateCsv() {
+    return TEMPLATE_CSV_ROWS.map(function (row) {
+      return row.map(csvField).join(",");
+    }).join("\r\n") + "\r\n";
+  }
+
+  function slugify(s) {
+    var slug = String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "");
+    return slug || uid("x");
+  }
+
+  // Handles both comma-delimited CSV and tab-delimited paste-from-Excel,
+  // including quoted fields that may contain commas/newlines.
+  function parseDelimited(text, delimiter) {
+    var rows = [];
+    var row = [];
+    var field = "";
+    var inQuotes = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else {
+          field += c;
+        }
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === delimiter) {
+        row.push(field);
+        field = "";
+      } else if (c === "\r") {
+        // skip
+      } else if (c === "\n") {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+      } else {
+        field += c;
+      }
+    }
+    if (field.length || row.length) {
+      row.push(field);
+      rows.push(row);
+    }
+    return rows.filter(function (r) { return r.some(function (cell) { return cell.trim() !== ""; }); });
+  }
+
+  function parseBulkImportText(text) {
+    var firstLine = text.split("\n")[0] || "";
+    var delimiter = firstLine.indexOf("\t") !== -1 ? "\t" : ",";
+    var rows = parseDelimited(text, delimiter);
+    if (!rows.length) return { error: "That didn't have any rows in it." };
+
+    var header = rows[0].map(function (h) { return h.trim().toLowerCase(); });
+    var idx = {
+      category: header.indexOf("category"),
+      item: header.indexOf("item"),
+      size: header.indexOf("size"),
+      price: header.indexOf("price"),
+      description: header.indexOf("description"),
+      tags: header.indexOf("tags"),
+      soldout: header.indexOf("soldout") !== -1 ? header.indexOf("soldout") : header.indexOf("sold out")
+    };
+    var missing = ["category", "item", "price"].filter(function (key) { return idx[key] === -1; });
+    if (missing.length) {
+      return { error: "Your file needs these column headers: Category, Item, Price. Missing: " + missing.join(", ") + "." };
+    }
+
+    var categoriesOrder = [];
+    var categoriesMap = {};
+    var itemCount = 0;
+
+    for (var r = 1; r < rows.length; r++) {
+      var row = rows[r];
+      var catName = (row[idx.category] || "").trim();
+      var itemName = (row[idx.item] || "").trim();
+      if (!catName || !itemName) continue;
+
+      var sizeLabel = idx.size !== -1 ? (row[idx.size] || "").trim() : "";
+      var price = (row[idx.price] || "0").trim().replace(/^\$/, "");
+      var description = idx.description !== -1 ? (row[idx.description] || "").trim() : "";
+      var tags = idx.tags !== -1
+        ? (row[idx.tags] || "").split(/[;,]/).map(function (t) { return t.trim(); }).filter(Boolean)
+        : [];
+      var soldOutRaw = idx.soldout !== -1 ? (row[idx.soldout] || "").trim().toLowerCase() : "";
+      var soldOut = soldOutRaw === "yes" || soldOutRaw === "true" || soldOutRaw === "1" || soldOutRaw === "sold out";
+
+      if (!categoriesMap[catName]) {
+        categoriesMap[catName] = { id: slugify(catName), name: catName, items: [], itemsByName: {} };
+        categoriesOrder.push(catName);
+      }
+      var cat = categoriesMap[catName];
+      var item = cat.itemsByName[itemName];
+      if (!item) {
+        item = { id: slugify(itemName) + "-" + uid("i"), name: itemName, description: description, tags: tags, available: !soldOut, sizes: [] };
+        cat.itemsByName[itemName] = item;
+        cat.items.push(item);
+        itemCount++;
+      }
+      item.sizes.push({ label: sizeLabel, cashPrice: price });
+    }
+
+    var categories = categoriesOrder.map(function (name) {
+      var cat = categoriesMap[name];
+      return { id: cat.id, name: cat.name, items: cat.items };
+    });
+
+    if (!categories.length) {
+      return { error: "No valid rows found. Make sure every item has a Category, Item name, and Price." };
+    }
+
+    return { categories: categories, categoryCount: categories.length, itemCount: itemCount };
+  }
+
+  var pendingImport = null;
+
+  document.getElementById("download-template-btn").addEventListener("click", function () {
+    var blob = new Blob([buildTemplateCsv()], { type: "text/csv" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "menu-template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("bulk-import-file").addEventListener("change", function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function (ev) {
+      document.getElementById("bulk-import-textarea").value = ev.target.result;
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById("bulk-import-preview-btn").addEventListener("click", function () {
+    var text = document.getElementById("bulk-import-textarea").value;
+    var previewEl = document.getElementById("bulk-import-preview");
+    if (!text.trim()) {
+      previewEl.style.display = "block";
+      previewEl.innerHTML = "<p class='bulk-import-error'>Paste your menu above, or upload a file, first.</p>";
+      pendingImport = null;
+      return;
+    }
+
+    var result = parseBulkImportText(text);
+    previewEl.style.display = "block";
+
+    if (result.error) {
+      previewEl.innerHTML = "<p class='bulk-import-error'>" + result.error + "</p>";
+      pendingImport = null;
+      return;
+    }
+
+    pendingImport = result.categories;
+
+    var rowsHtml = result.categories.map(function (cat) {
+      return "<tr><td>" + cat.name + "</td><td>" + cat.items.length + " item(s)</td></tr>";
+    }).join("");
+
+    previewEl.innerHTML =
+      "<p>Found <strong>" + result.categoryCount + " section(s)</strong> and <strong>" + result.itemCount + " item(s)</strong>:</p>" +
+      "<table><tr><th>Section</th><th>Items</th></tr>" + rowsHtml + "</table>" +
+      "<p><strong>This will replace your entire current menu.</strong> Your restaurant name, tagline, colors, and card surcharge won't change.</p>" +
+      "<button id='bulk-import-confirm-btn' class='btn btn-publish' type='button' style='margin-right:10px;'>Replace Menu With This</button>" +
+      "<button id='bulk-import-cancel-btn' class='btn-secondary' type='button'>Cancel</button>";
+
+    document.getElementById("bulk-import-confirm-btn").addEventListener("click", function () {
+      if (!pendingImport) return;
+      if (!confirm("This replaces every section and item in your current menu. This can't be undone unless you have a backup. Continue?")) return;
+      state.categories = pendingImport;
+      pendingImport = null;
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+      document.getElementById("bulk-import-textarea").value = "";
+      document.getElementById("bulk-import-file").value = "";
+      renderEditor();
+      renderPreview();
+      showStatus("success", "Menu imported. Review it below, then click Publish to Website when you're ready.");
+    });
+
+    document.getElementById("bulk-import-cancel-btn").addEventListener("click", function () {
+      pendingImport = null;
+      previewEl.style.display = "none";
+      previewEl.innerHTML = "";
+    });
+  });
+
   function buildFileContents() {
     return "window.MENU_DATA = " + JSON.stringify(state, null, 2) + ";\n";
   }
 
-  function utf8ToBase64(str) {
-    return btoa(unescape(encodeURIComponent(str)));
+  // ---- Publish password -----------------------------------------------
+  // The real GitHub token never reaches this page — it lives only on the
+  // publish proxy server. This password is the only thing the editor
+  // sends, and it's never written into config.js or any published file;
+  // it only ever lives in the person's head, or (optionally) saved to
+  // this one browser via localStorage if they check "Remember."
+
+  var PASSWORD_STORAGE_KEY = "menuEditorPublishPassword";
+  var publishPasswordInput = document.getElementById("publish-password-input");
+  var rememberPasswordCheckbox = document.getElementById("remember-password-checkbox");
+
+  var savedPassword = localStorage.getItem(PASSWORD_STORAGE_KEY);
+  if (savedPassword) {
+    publishPasswordInput.value = savedPassword;
+    rememberPasswordCheckbox.checked = true;
   }
+
+  rememberPasswordCheckbox.addEventListener("change", function () {
+    if (!rememberPasswordCheckbox.checked) {
+      localStorage.removeItem(PASSWORD_STORAGE_KEY);
+    } else if (publishPasswordInput.value) {
+      localStorage.setItem(PASSWORD_STORAGE_KEY, publishPasswordInput.value);
+    }
+  });
 
   document.getElementById("save-backup-btn").addEventListener("click", async function () {
     var contents = buildFileContents();
@@ -639,8 +917,14 @@
   document.getElementById("publish-btn").addEventListener("click", async function () {
     clearStatus();
     var config = window.MENU_SITE_CONFIG;
-    if (window.__CONFIG_MISSING__ || !config || !config.token) {
-      showStatus("error", "Publishing isn't set up on this computer yet. Ask Coastal POS to finish setup, or use \"Save Backup Copy\" for now.");
+    if (window.__CONFIG_MISSING__ || !config || !config.publishProxyUrl) {
+      showStatus("error", "Publishing isn't set up on this site yet. Ask Coastal POS to finish setup, or use \"Save Backup Copy\" for now.");
+      return;
+    }
+
+    var password = publishPasswordInput.value;
+    if (!password) {
+      showStatus("error", "Enter your publish password above first.");
       return;
     }
 
@@ -649,27 +933,26 @@
     publishBtn.textContent = "Publishing...";
     showStatus("info", "Publishing your menu, please wait...");
 
-    var apiBase = githubApiBase(config);
-    var branch = config.branch || "main";
-
     try {
-      var getResp = await fetch(apiBase + "?ref=" + branch, {
-        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" }
+      var resp = await fetch(config.publishProxyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: password, content: buildFileContents() })
       });
-      if (!getResp.ok) throw new Error("lookup-failed");
-      var getJson = await getResp.json();
+      var result = null;
+      try { result = await resp.json(); } catch (e) {}
 
-      var putResp = await fetch(apiBase, {
-        method: "PUT",
-        headers: { Authorization: "Bearer " + config.token, Accept: "application/vnd.github+json" },
-        body: JSON.stringify({
-          message: "Update menu",
-          content: utf8ToBase64(buildFileContents()),
-          sha: getJson.sha,
-          branch: branch
-        })
-      });
-      if (!putResp.ok) throw new Error("publish-failed");
+      if (resp.status === 403) {
+        showStatus("error", "That publish password wasn't recognized. Double-check it and try again.");
+        return;
+      }
+      if (!resp.ok || !result || !result.ok) {
+        throw new Error("publish-failed");
+      }
+
+      if (rememberPasswordCheckbox.checked) {
+        localStorage.setItem(PASSWORD_STORAGE_KEY, password);
+      }
 
       var liveNote = config.siteUrl
         ? " View it at " + config.siteUrl + " (it may take about a minute to update)."
