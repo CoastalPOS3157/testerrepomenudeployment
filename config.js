@@ -11,10 +11,10 @@
   any file on GitHub).
 */
 window.MENU_SITE_CONFIG = {
-  repoOwner: "YOUR-GITHUB-USERNAME",
-  repoName: "customer-name-menu",
+  repoOwner: "CoastalPOS3157",
+  repoName: "testerrepomenudeployment",
   branch: "main",
   filePath: "menu-data.js",
-  siteUrl: "https://YOUR-GITHUB-USERNAME.github.io/customer-name-menu/",
-  publishProxyUrl: "https://menu-publish-proxy.YOUR-SUBDOMAIN.workers.dev/publish"
+  siteUrl: "https://coastalpos3157.github.io/testerrepomenudeployment/",
+  publishProxyUrl: "https://menu-publish-proxy.cposremote.workers.dev/publish"
 };
