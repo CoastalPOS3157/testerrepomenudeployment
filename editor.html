@@ -4,7 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Edit Your Menu</title>
-<link rel="stylesheet" href="style.css" />
+<script>
+  // style.css and app.js live in ONE shared repo (menu-site-core), not
+  // copied into every customer's repo — see index.html for why.
+  var CORE_BASE = "https://coastalpos3157.github.io/menu-site-core/";
+  document.write('<link rel="stylesheet" href="' + CORE_BASE + 'style.css?v=' + Date.now() + '" />');
+</script>
 <style>
   body { background: #f4f1ec; }
   .editor-wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
@@ -167,7 +172,9 @@
   // browser-cached copy from a previous visit.
   document.write('<script src="menu-data.js?v=' + Date.now() + '"><\/script>');
 </script>
-<script src="app.js"></script>
+<script>
+  document.write('<script src="' + CORE_BASE + 'app.js?v=' + Date.now() + '"><\/script>');
+</script>
 <script src="config.js" onerror="window.__CONFIG_MISSING__ = true"></script>
 <script>
 (function () {

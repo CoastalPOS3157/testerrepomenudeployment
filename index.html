@@ -4,7 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Menu</title>
-  <link rel="stylesheet" href="style.css" />
+  <script>
+    // style.css and app.js live in ONE shared repo (menu-site-core), not
+    // copied into every customer's repo — so a design or behavior fix
+    // there reaches every customer's site automatically, with nothing to
+    // re-upload per customer. Only this customer's own data (menu-data.js,
+    // config.js) lives locally. If the core repo's address ever changes,
+    // this line needs updating in every customer's index.html/editor.html.
+    var CORE_BASE = "https://coastalpos3157.github.io/menu-site-core/";
+    document.write('<link rel="stylesheet" href="' + CORE_BASE + 'style.css?v=' + Date.now() + '" />');
+  </script>
 </head>
 <body>
   <div class="page">
@@ -21,6 +30,8 @@
     // old cached copy of menu-data.js.
     document.write('<script src="menu-data.js?v=' + Date.now() + '"><\/script>');
   </script>
-  <script src="app.js"></script>
+  <script>
+    document.write('<script src="' + CORE_BASE + 'app.js?v=' + Date.now() + '"><\/script>');
+  </script>
 </body>
 </html>
