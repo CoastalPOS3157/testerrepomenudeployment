@@ -1,6 +1,6 @@
 window.MENU_DATA = {
   "restaurantName": "Tester resty man",
-  "tagline": "Fresh food, made simple",
+  "tagline": "Fresh food, made simple (cf-test)",
   "updatedAt": "2026-08-21",
   "settings": {
     "cardSurchargePercent": 3.99,
